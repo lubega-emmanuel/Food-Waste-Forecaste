@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Waste Forecaster</title>
+    <script>
+    try {
+      var t = localStorage.getItem("theme") || "light";
+      if (t === "system") {
+        t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <header>
+    <div class="header-bar">
+      <div class="brand">
+        <h1>Food Waste Forecaster</h1>
+        <p>Prepare what you'll sell. Waste less.</p>
+      </div>
+            <div class="header-user">
+        <div class="menu-wrap">
+          <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          <div id="settingsMenu" class="dropdown" hidden>
+            <h3>Settings</h3>
+            <div class="setting-row">
+              <span>Theme</span>
+              <div class="segmented">
+                <button type="button" data-theme-choice="light">Light</button>
+                <button type="button" data-theme-choice="dark">Dark</button>
+                <button type="button" data-theme-choice="system">System</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="menu-wrap">
+          <button id="profileBtn" class="icon-btn avatar" title="Profile" aria-label="Profile" aria-expanded="false">
+            <span id="avatarInitial">?</span>
+          </button>
+          <div id="profileMenu" class="dropdown" hidden>
+            <div class="profile-head">
+              <span class="avatar-lg" id="avatarLarge">?</span>
+              <div>
+                <strong id="userName"></strong>
+                <small>Signed in</small>
+              </div>
+            </div>
+            <button id="logoutBtn" class="secondary full">Log out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="log">Daily log</button>
+      <button class="tab-btn" data-tab="forecast">Forecast</button>
+      <button class="tab-btn" data-tab="menu">Menu</button>
+      <button class="tab-btn" data-tab="reports">Reports</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- TAB 1: Dashboard -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <section class="card">
+        <div class="row between">
+          <h2 id="dashTitle">Last 28 days</h2>
+          <select id="rangeSelect">
+            <option value="7">Last 7 days</option>
+            <option value="28" selected>Last 28 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-label">Waste cost, last 7 days</span>
+            <span class="stat-value" id="statWeek">-</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Average waste</span>
+            <span class="stat-value" id="statPct">-</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Top waste item</span>
+            <span class="stat-value" id="statWorst">-</span>
+          </div>
+        </div>
+
+        <p id="dashEmpty" class="muted" hidden>No records in this period yet. Log a day in the Daily log tab to see your charts.</p>
+        <div class="charts">
+          <div class="chart-box">
+            <h3>Waste cost per day</h3>
+            <div class="chart-area"><canvas id="dailyChart"></canvas></div>
+          </div>
+          <div class="chart-box">
+            <h3>Waste cost per item</h3>
+            <div class="chart-area"><canvas id="itemChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB 2: Daily log -->
+    <div id="tab-log" class="tab-panel">
+      <section class="card">
+        <div class="row between">
+          <h2>Daily log</h2>
+          <input type="date" id="recordDate">
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Category</th>
+                <th>Prepared</th>
+                <th>Sold</th>
+                <th>Wasted</th>
+                <th>Waste %</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="recordsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB 3: Forecast -->
+    <div id="tab-forecast" class="tab-panel">
+      <section class="card">
+        <div class="row between">
+          <h2>Forecast</h2>
+          <input type="date" id="forecastDate">
+        </div>
+        <p id="forecastTitle" class="muted"></p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Expected demand</th>
+                <th>Prepare</th>
+                <th>Usually prepared</th>
+                <th>Avg wasted</th>
+                <th>Possible saving</th>
+                <th>Based on</th>
+              </tr>
+            </thead>
+            <tbody id="forecastBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB 4: Menu -->
+    <div id="tab-menu" class="tab-panel">
+      <section class="card">
+        <h2>Add menu item</h2>
+        <form id="itemForm" class="row">
+          <input type="text" id="itemName" placeholder="Item name" required>
+          <select id="itemCategory" required>
+            <option value="Main">Main</option>
+            <option value="Side">Side</option>
+            <option value="Drink">Drink</option>
+            <option value="Dessert">Dessert</option>
+          </select>
+          <input type="number" id="itemCost" placeholder="Unit cost" min="0" step="100" required>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Menu items</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Unit cost</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB 5: Reports -->
+    <div id="tab-reports" class="tab-panel">
+      <section class="card" id="weeklyCard">
+        <div class="row between">
+          <h2>Weekly summary</h2>
+          <button class="secondary" id="printWeekly">Print / save as PDF</button>
+        </div>
+        <p id="weeklyHeadline" class="muted"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Prepared</th>
+                <th>Sold</th>
+                <th>Wasted</th>
+                <th>Waste %</th>
+                <th>Waste cost</th>
+                <th>Week before</th>
+                <th>Change</th>
+              </tr>
+            </thead>
+            <tbody id="weeklyBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="prepCard">
+        <div class="row between">
+          <h2>Prep list</h2>
+          <div class="row no-print">
+            <input type="date" id="prepDate">
+            <button class="secondary" id="printPrep">Print / save as PDF</button>
+          </div>
+        </div>
+        <p id="prepTitle" class="muted"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Prepare</th>
+                <th>Done</th>
+              </tr>
+            </thead>
+            <tbody id="prepBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card no-print" id="exportCard">
+        <h2>Export to Excel (CSV)</h2>
+        <div class="row">
+          <label class="inline-label">From <input type="date" id="exportFrom"></label>
+          <label class="inline-label">To <input type="date" id="exportTo"></label>
+          <button id="exportBtn">Download CSV</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="editDialog">
+    <form id="editForm">
+      <h2>Edit menu item</h2>
+      <input type="hidden" id="editId">
+      <label>Name
+        <input type="text" id="editName" required>
+      </label>
+      <label>Category
+        <select id="editCategory" required>
+          <option value="Main">Main</option>
+          <option value="Side">Side</option>
+          <option value="Drink">Drink</option>
+          <option value="Dessert">Dessert</option>
+        </select>
+      </label>
+      <label>Unit cost
+        <input type="number" id="editCost" min="0" step="100" required>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="editCancel" class="secondary">Cancel</button>
+        <button type="submit">Save changes</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toasts"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
